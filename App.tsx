@@ -10,6 +10,7 @@ import { fileToBase64 } from './utils/fileUtils';
 import { MemeTopicInput } from './components/MemeTopicInput';
 import { MemeModeSelector } from './components/MemeModeSelector';
 import { TemplateUploader } from './components/TemplateUploader';
+import { FullScreenViewer } from './components/FullScreenViewer';
 
 const App: React.FC = () => {
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
@@ -21,6 +22,7 @@ const App: React.FC = () => {
   const [showConfetti, setShowConfetti] = useState<boolean>(false);
   const [memeTopic, setMemeTopic] = useState<string>('');
   const [memeMode, setMemeMode] = useState<MemeGenerationMode>('classic');
+  const [fullscreenMeme, setFullscreenMeme] = useState<string | null>(null);
 
   const handleFilesSelect = useCallback(async (files: FileList) => {
     setIsLoading(true);
@@ -182,15 +184,21 @@ const App: React.FC = () => {
 
           <MemeDisplay
             memes={generatedMemes}
-            // FIX: Corrected typo from selectedMame to selectedMeme
             selectedMeme={selectedMeme}
             onSelectMeme={setSelectedMeme}
             isLoading={isLoading}
             error={error}
+            onOpenFullscreen={setFullscreenMeme}
           />
         </div>
       </main>
       <Footer />
+      {fullscreenMeme && (
+        <FullScreenViewer 
+          memeUrl={fullscreenMeme} 
+          onClose={() => setFullscreenMeme(null)} 
+        />
+      )}
     </div>
   );
 };

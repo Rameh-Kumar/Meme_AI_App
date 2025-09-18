@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Loader } from './Loader';
 
@@ -7,9 +8,17 @@ interface MemeDisplayProps {
   onSelectMeme: (memeUrl: string) => void;
   isLoading: boolean;
   error: string | null;
+  onOpenFullscreen: (memeUrl: string) => void;
 }
 
-export const MemeDisplay: React.FC<MemeDisplayProps> = ({ memes, selectedMeme, onSelectMeme, isLoading, error }) => {
+const ExpandIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M20.25 20.25v-4.5m0 4.5h-4.5m4.5 0L15 15M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15m11.25-6L15 9" />
+    </svg>
+);
+
+
+export const MemeDisplay: React.FC<MemeDisplayProps> = ({ memes, selectedMeme, onSelectMeme, isLoading, error, onOpenFullscreen }) => {
   if (isLoading) {
     return (
       <div className="mt-8 p-4 w-full aspect-video bg-gray-800 rounded-lg flex flex-col items-center justify-center transition-all duration-300">
@@ -42,9 +51,18 @@ export const MemeDisplay: React.FC<MemeDisplayProps> = ({ memes, selectedMeme, o
         <h2 className="text-2xl font-bold text-center mb-4 bg-gradient-to-r from-purple-400 to-pink-500 text-transparent bg-clip-text">Choose Your Favorite!</h2>
         
         {/* Main Preview Area */}
-        <div className="bg-gray-900/50 p-2 rounded-lg shadow-lg border border-gray-700 min-h-[300px] flex items-center justify-center">
+        <div className="relative bg-gray-900/50 p-2 rounded-lg shadow-lg border border-gray-700 min-h-[300px] flex items-center justify-center">
             {selectedMeme ? (
-                <img src={selectedMeme} alt="Selected Meme" className="w-full h-auto max-h-[60vh] object-contain rounded-md" />
+                <>
+                    <img src={selectedMeme} alt="Selected Meme" className="w-full h-auto max-h-[60vh] object-contain rounded-md" />
+                    <button 
+                        onClick={() => onOpenFullscreen(selectedMeme)}
+                        className="absolute top-2 right-2 p-2 text-white bg-black/50 rounded-full hover:bg-black/75 transition-colors"
+                        aria-label="View fullscreen"
+                    >
+                        <ExpandIcon />
+                    </button>
+                </>
             ) : (
                 <p className="text-gray-500 p-8 text-center">Select a variation below to see it in all its glory.</p>
             )}
