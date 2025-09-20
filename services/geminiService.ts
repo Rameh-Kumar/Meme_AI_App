@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Modality } from "@google/genai";
 import type { UploadedImage, MemeGenerationMode } from '../types';
 
@@ -26,14 +25,14 @@ const createPrompt = (mode: MemeGenerationMode, topic?: string, hasTemplate?: bo
 
     case 'custom':
       return `You are a master image editor specializing in memes.
-**Mission:** Seamlessly blend a subject image into a user-provided meme template.
+**Mission:** Seamlessly blend one or more subject images into a user-provided meme template.
 **Input Analysis:**
 *   **Image 1 (The Template):** This is the background and context. The foundational meme format.
-*   **Image 2 (The Subject):** This is the person, object, or character to be integrated.
+*   **Following Images (The Subjects):** These are the people, objects, or characters to be integrated into the template.
 **Instructions:**
-1.  **Analyze Both Images:** Understand the lighting, style, perspective, and content of both the template and the subject.
-2.  **Integrate the Subject:** Place the subject from Image 2 into the template (Image 1). You might need to replace an existing character in the template. The integration must be FLAWLESS.
-3.  **Match the Aesthetics:** Adjust lighting, shadows, color grading, and image quality of the subject to match the template perfectly. It should look like it was part of the original photo.
+1.  **Analyze All Images:** Understand the lighting, style, perspective, and content of both the template and all the subject images.
+2.  **Integrate the Subjects:** Place the subjects from the subject images into the template (Image 1). You might need to replace existing characters in the template or add the subjects in a creative way. The integration must be FLAWLESS and logical for the meme you're creating.
+3.  **Match the Aesthetics:** Adjust lighting, shadows, color grading, and image quality of all subjects to match the template perfectly. It should look like they were part of the original photo.
 4.  **Add Witty Text:** Add a caption that makes the combined image hilarious. ${topicInstruction}
 5.  **Output:** Your only output is the final, masterfully edited meme image. No extra text.`;
     
