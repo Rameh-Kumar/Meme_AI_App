@@ -33,7 +33,7 @@ const createPrompt = (mode: MemeGenerationMode, topic?: string, hasTemplate?: bo
 1.  **Analyze All Images:** Understand the lighting, style, perspective, and content of both the template and all the subject images.
 2.  **Integrate the Subjects:** Place the subjects from the subject images into the template (Image 1). You might need to replace existing characters in the template or add the subjects in a creative way. The integration must be FLAWLESS and logical for the meme you're creating.
 3.  **Match the Aesthetics:** Adjust lighting, shadows, color grading, and image quality of all subjects to match the template perfectly. It should look like they were part of the original photo.
-4.  **Add Witty Text:** Add a caption that makes the combined image hilarious. ${topicInstruction}
+4.  **Evaluate Text:** The template may already contain text. Your primary goal is the visual integration. **Only add or modify text if it is essential to complete the joke.** If the visual replacement of the subject is the entire joke, do not add any new text. Your goal is to create a funny, coherent meme. If you do add text, it should be integrated seamlessly. ${topicInstruction}
 5.  **Output:** Your only output is the final, masterfully edited meme image. No extra text.`;
     
     case 'classic':
