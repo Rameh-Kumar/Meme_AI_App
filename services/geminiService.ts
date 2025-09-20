@@ -49,6 +49,26 @@ const createPrompt = (mode: MemeGenerationMode, topic?: string, hasTemplate?: bo
   }
 };
 
+const createStoryPrompt = (panelNumber: number, totalPanels: number, topic: string): string => {
+  const topicInstruction = (topic && topic.trim() !== '') 
+    ? `The story should be about: "${topic}".`
+    : `The story should be something universally funny.`;
+
+  const panelContext = {
+    1: 'The first panel should introduce the character(s) and the setting from the image, establishing the beginning of the story.',
+    2: 'This panel is the middle of the story. It should show a rising action, a problem, or a conflict.',
+    3: 'This is the final panel. It should provide a resolution or a punchline to conclude the story.',
+  }[panelNumber];
+
+  return `You are a comic book artist creating a ${totalPanels}-panel comic strip.
+**Mission:** Create panel ${panelNumber} of ${totalPanels}.
+**Character Reference:** The provided image contains the main character(s). Their appearance, clothing, and style MUST remain consistent with this reference image throughout the story. Do not change the character.
+**Story Topic:** ${topicInstruction}
+**Panel Task:** ${panelContext}
+**Output:** Your only output is the final, high-quality image for this specific panel. Do not add panel numbers, text unrelated to the story, or explanations.`;
+};
+
+
 const generateSingleMemeInstance = async (
   images: UploadedImage[], 
   topic: string, 
@@ -99,12 +119,81 @@ const generateSingleMemeInstance = async (
   return null;
 };
 
+const generateStoryPanel = async (
+  image: UploadedImage, 
+  topic: string, 
+  panelNumber: number,
+  totalPanels: number
+): Promise<string | null> => {
+  const prompt = createStoryPrompt(panelNumber, totalPanels, topic);
+
+  const contents = {
+    parts: [
+      { text: prompt },
+      { inlineData: { data: image.data, mimeType: image.mimeType } },
+    ]
+  };
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash-image-preview',
+    contents: contents,
+    config: {
+      responseModalities: [Modality.IMAGE, Modality.TEXT],
+    },
+  });
+
+  for (const part of response.candidates?.[0]?.content?.parts || []) {
+    if (part.inlineData?.data && part.inlineData?.mimeType) {
+      return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+    }
+  }
+  
+  const responseText = response.text ?? '';
+  if (responseText.trim() === '') {
+    console.warn(`API response for panel ${panelNumber} was empty. This could be due to a safety policy violation.`);
+  } else {
+    console.warn(`API for panel ${panelNumber} returned text instead of an image: "${responseText.trim()}"`);
+  }
+
+  return null;
+}
+
 export const generateMeme = async (
   images: UploadedImage[], 
   topic: string,
   mode: MemeGenerationMode,
   templateImage: UploadedImage | null
 ): Promise<string[]> => {
+  if (mode === 'story') {
+    const NUMBER_OF_PANELS = 3;
+    const panelPromises: Promise<string | null>[] = [];
+    const characterReferenceImage = images[0]; // Use the first image as the consistent reference
+
+    if (!characterReferenceImage) {
+      throw new Error("An image is required for story mode.");
+    }
+
+    for (let i = 1; i <= NUMBER_OF_PANELS; i++) {
+        panelPromises.push(generateStoryPanel(characterReferenceImage, topic, i, NUMBER_OF_PANELS));
+    }
+
+    try {
+        const results = await Promise.all(panelPromises);
+        const successfulPanels = results.filter((panel): panel is string => panel !== null);
+
+        if (successfulPanels.length === 0) {
+            throw new Error("The AI failed to generate any story panels. This can happen due to safety policies or if the request is unclear. Try a different image or topic.");
+        }
+        return successfulPanels;
+    } catch (error) {
+        console.error("Error generating story panels:", error);
+        if (error instanceof Error) {
+            throw new Error(`Gemini API Error: ${error.message}`);
+        }
+        throw new Error("An unknown error occurred while communicating with the Gemini API.");
+    }
+  }
+
   const NUMBER_OF_VARIATIONS = 3;
   const generationPromises: Promise<string | null>[] = [];
 

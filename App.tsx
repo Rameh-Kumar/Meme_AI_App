@@ -77,8 +77,11 @@ const App: React.FC = () => {
       const results = await generateMeme(uploadedImages, memeTopic, memeMode, templateImage);
       if (results && results.length > 0) {
         setGeneratedMemes(results);
-        setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 5000); 
+        // Only show confetti for meme variations, not for story panels
+        if (memeMode !== 'story') {
+          setShowConfetti(true);
+          setTimeout(() => setShowConfetti(false), 5000); 
+        }
       } else {
         throw new Error('The AI did not return any images. Please try a different source image or topic.');
       }
@@ -109,6 +112,8 @@ const App: React.FC = () => {
   
   const getImageUploaderTitle = () => {
     switch (memeMode) {
+      case 'story':
+        return 'Upload Character Image';
       case 'custom':
         return 'Upload Subject Image(s)';
       case 'popular':
@@ -171,7 +176,7 @@ const App: React.FC = () => {
               disabled={isLoading || uploadedImages.length === 0}
               className="w-full sm:w-1/2 flex-grow bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-purple-500/50 shadow-lg"
             >
-              {isLoading ? 'Summoning Memes...' : '✨ Generate Meme'}
+              {isLoading ? 'Summoning Genius...' : '✨ Generate'}
             </button>
              <button
               onClick={handleClear}
@@ -189,6 +194,7 @@ const App: React.FC = () => {
             isLoading={isLoading}
             error={error}
             onOpenFullscreen={setFullscreenMeme}
+            memeMode={memeMode}
           />
         </div>
       </main>

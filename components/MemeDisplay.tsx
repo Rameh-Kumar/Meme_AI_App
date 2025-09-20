@@ -1,5 +1,7 @@
+
 import React from 'react';
 import { Loader } from './Loader';
+import type { MemeGenerationMode } from '../types';
 
 interface MemeDisplayProps {
   memes: string[];
@@ -8,6 +10,7 @@ interface MemeDisplayProps {
   isLoading: boolean;
   error: string | null;
   onOpenFullscreen: (memeUrl: string) => void;
+  memeMode: MemeGenerationMode;
 }
 
 const ExpandIcon: React.FC = () => (
@@ -17,7 +20,7 @@ const ExpandIcon: React.FC = () => (
 );
 
 
-export const MemeDisplay: React.FC<MemeDisplayProps> = ({ memes, selectedMeme, onSelectMeme, isLoading, error, onOpenFullscreen }) => {
+export const MemeDisplay: React.FC<MemeDisplayProps> = ({ memes, selectedMeme, onSelectMeme, isLoading, error, onOpenFullscreen, memeMode }) => {
   if (isLoading) {
     return (
       <div className="mt-8 p-4 w-full aspect-video bg-gray-800 rounded-lg flex flex-col items-center justify-center transition-all duration-300">
@@ -40,7 +43,32 @@ export const MemeDisplay: React.FC<MemeDisplayProps> = ({ memes, selectedMeme, o
     return (
       <div className="mt-8 p-4 w-full min-h-[300px] aspect-video bg-gray-800/30 border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center transition-all duration-300">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-        <p className="mt-4 text-gray-500">Your generated memes will appear here.</p>
+        <p className="mt-4 text-gray-500">Your generated creations will appear here.</p>
+      </div>
+    );
+  }
+  
+  if (memeMode === 'story') {
+    return (
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold text-center mb-4 bg-gradient-to-r from-purple-400 to-pink-500 text-transparent bg-clip-text">Your Story Unfolds...</h2>
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {memes.map((memeUrl, index) => (
+            <div 
+              key={index} 
+              className="relative aspect-video cursor-pointer rounded-lg overflow-hidden border-2 border-gray-700 group text-white" 
+              onClick={() => onOpenFullscreen(memeUrl)}
+              aria-label={`View panel ${index + 1} fullscreen`}
+            >
+              <img src={memeUrl} alt={`Story panel ${index + 1}`} className="w-full h-full object-cover" />
+              <div className="absolute top-2 left-2 bg-black/70 rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg">{index + 1}</div>
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true">
+                <ExpandIcon />
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-center text-gray-500 text-sm mt-4">Click on a panel to view it in fullscreen.</p>
       </div>
     );
   }

@@ -4,4 +4,4 @@ export interface UploadedImage {
   mimeType: string;
 }
 
-export type MemeGenerationMode = 'classic' | 'popular' | 'custom';
+export type MemeGenerationMode = 'classic' | 'popular' | 'custom' | 'story';

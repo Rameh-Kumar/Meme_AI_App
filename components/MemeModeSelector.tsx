@@ -11,13 +11,14 @@ const modes: { id: MemeGenerationMode; label: string; description: string }[] = 
   { id: 'classic', label: 'Classic Caption', description: 'AI adds a witty caption to your image.' },
   { id: 'popular', label: 'Popular Template', description: 'AI recreates your image in a famous meme format.' },
   { id: 'custom', label: 'Custom Template', description: 'Blend your subject into a template you provide.' },
+  { id: 'story', label: 'Story Mode', description: 'AI generates a 3-panel story with your character.' },
 ];
 
 export const MemeModeSelector: React.FC<MemeModeSelectorProps> = ({ selectedMode, onModeChange }) => {
   return (
     <div className="mb-6">
-      <h3 className="text-lg font-medium text-gray-200 mb-3">Meme Generation Mode</h3>
-      <div className="grid sm:grid-cols-3 gap-3">
+      <h3 className="text-lg font-medium text-gray-200 mb-3">Generation Mode</h3>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {modes.map((mode) => (
           <button
             key={mode.id}
