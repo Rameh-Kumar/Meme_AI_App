@@ -6,9 +6,17 @@ interface TemplateUploaderProps {
   onTemplateSelect: (file: File) => void;
   templateImage: UploadedImage | null;
   isLoading: boolean;
+  onRemoveTemplate: () => void;
 }
 
-export const TemplateUploader: React.FC<TemplateUploaderProps> = ({ onTemplateSelect, templateImage, isLoading }) => {
+const CloseIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+    </svg>
+);
+  
+
+export const TemplateUploader: React.FC<TemplateUploaderProps> = ({ onTemplateSelect, templateImage, isLoading, onRemoveTemplate }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,12 +70,19 @@ export const TemplateUploader: React.FC<TemplateUploaderProps> = ({ onTemplateSe
       
       {templateImage && (
         <div className="mt-2">
-          <div className="relative w-48 mx-auto aspect-video overflow-hidden rounded-lg shadow-md border-2 border-pink-500">
+          <div className="relative group w-48 mx-auto aspect-video overflow-hidden rounded-lg shadow-md border-2 border-pink-500">
             <img
               src={`data:${templateImage.mimeType};base64,${templateImage.data}`}
               alt="Template Preview"
               className="w-full h-full object-contain"
             />
+            <button
+              onClick={onRemoveTemplate}
+              className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity duration-200"
+              aria-label="Remove template image"
+            >
+              <CloseIcon />
+            </button>
           </div>
         </div>
       )}

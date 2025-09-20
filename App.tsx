@@ -57,6 +57,16 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const handleRemoveImage = useCallback((indexToRemove: number) => {
+    setUploadedImages(prevImages => prevImages.filter((_, index) => index !== indexToRemove));
+  }, []);
+
+  const handleRemoveTemplate = useCallback(() => {
+    setTemplateImage(null);
+    const templateInput = document.getElementById('template-upload') as HTMLInputElement;
+    if (templateInput) templateInput.value = '';
+  }, []);
+
   const handleGenerateMeme = useCallback(async () => {
     if (uploadedImages.length === 0) {
       setError('Please upload at least one image first.');
@@ -154,6 +164,7 @@ const App: React.FC = () => {
               onTemplateSelect={handleTemplateSelect}
               templateImage={templateImage}
               isLoading={isLoading}
+              onRemoveTemplate={handleRemoveTemplate}
             />
           )}
 
@@ -162,6 +173,7 @@ const App: React.FC = () => {
             uploadedImages={uploadedImages}
             isLoading={isLoading}
             title={getImageUploaderTitle()}
+            onRemoveImage={handleRemoveImage}
           />
           
           <MemeTopicInput

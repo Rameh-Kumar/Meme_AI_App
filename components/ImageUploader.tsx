@@ -7,9 +7,17 @@ interface ImageUploaderProps {
   uploadedImages: UploadedImage[];
   isLoading: boolean;
   title: string;
+  onRemoveImage: (index: number) => void;
 }
 
-export const ImageUploader: React.FC<ImageUploaderProps> = ({ onFilesSelect, uploadedImages, isLoading, title }) => {
+const CloseIcon: React.FC = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+
+
+export const ImageUploader: React.FC<ImageUploaderProps> = ({ onFilesSelect, uploadedImages, isLoading, title, onRemoveImage }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,12 +74,19 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onFilesSelect, upl
           <h3 className="text-sm font-medium text-gray-300">Image Preview:</h3>
           <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {uploadedImages.map((image, index) => (
-              <div key={index} className="relative aspect-square overflow-hidden rounded-lg shadow-md border-2 border-gray-700">
+              <div key={index} className="relative group aspect-square overflow-hidden rounded-lg shadow-md border-2 border-gray-700">
                 <img
                   src={`data:${image.mimeType};base64,${image.data}`}
                   alt={`Preview ${index}`}
                   className="w-full h-full object-cover"
                 />
+                 <button
+                  onClick={() => onRemoveImage(index)}
+                  className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity duration-200"
+                  aria-label={`Remove image ${index + 1}`}
+                >
+                  <CloseIcon />
+                </button>
               </div>
             ))}
           </div>
