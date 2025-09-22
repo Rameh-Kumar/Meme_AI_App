@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Modality } from "@google/genai";
 import type { UploadedImage, MemeGenerationMode } from '../types';
 
@@ -7,6 +8,49 @@ if (!process.env.API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+export const createDigitalTwin = async (image: UploadedImage): Promise<string | null> => {
+  const prompt = `You are an expert digital artist specializing in creating character models.
+**Mission:** Analyze the user's uploaded image and create a "digital twin" of the main subject.
+
+**Instructions:**
+1.  **Identify the Main Subject:** Accurately identify the primary person, animal, or object in the image.
+2.  **Isolate and Remove Background:** Carefully cut out the subject from its original background. The background of the output image must be transparent.
+3.  **Enhance and Clean:** Clean up any artifacts, improve lighting slightly, and enhance details to make the subject look like a high-quality digital asset or sticker. The style should be photorealistic but clean, as if it's ready to be composited into a new scene.
+4.  **Maintain Identity:** The subject must remain 100% recognizable. Do not change its core features, clothing, or expression unless it's to improve clarity.
+5.  **Output:** Your only output is the final, high-quality image of the isolated subject. Do not add any text, borders, or other elements.`;
+
+  const contents = {
+    parts: [
+      { text: prompt },
+      { inlineData: { data: image.data, mimeType: image.mimeType } },
+    ]
+  };
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash-image-preview',
+    contents: contents,
+    config: {
+      responseModalities: [Modality.IMAGE, Modality.TEXT],
+    },
+  });
+
+  for (const part of response.candidates?.[0]?.content?.parts || []) {
+    if (part.inlineData?.data && part.inlineData?.mimeType) {
+      return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+    }
+  }
+  
+  const responseText = response.text ?? '';
+  if (responseText.trim() === '') {
+    console.warn("API response for Digital Twin was empty or did not contain an image part. This could be due to a safety policy violation.");
+  } else {
+    console.warn(`API for Digital Twin returned text instead of an image: "${responseText.trim()}"`);
+  }
+
+  return null;
+};
+
+
 const createPrompt = (mode: MemeGenerationMode, topic?: string, hasTemplate?: boolean): string => {
   const topicInstruction = (topic && topic.trim() !== '') 
     ? `The user wants the meme to be about: "${topic}". Use this as your primary inspiration.`
@@ -15,7 +59,7 @@ const createPrompt = (mode: MemeGenerationMode, topic?: string, hasTemplate?: bo
   switch (mode) {
     case 'popular':
       return `You are a meme expert who recreates images in the style of popular meme formats.
-**Mission:** Analyze the user's image and reimagine it as a famous meme.
+**Mission:** Analyze the user's image and reimagine it as a famous meme. The user may provide a clean "digital twin" with a transparent background; if so, seamlessly integrate it.
 **Instructions:**
 1.  **Identify the Core Concept:** Look at the user's image. What's the mood, the action, the subject?
 2.  **Select a Matching Meme Format:** Choose a well-known meme template that fits the user's image concept (e.g., "Distracted Boyfriend," "Woman Yelling at a Cat," "Is This a Pigeon?").
@@ -53,7 +97,7 @@ const createPrompt = (mode: MemeGenerationMode, topic?: string, hasTemplate?: bo
       return `You are a legendary meme creator.
 **Mission:** Create a hilarious meme by adding a caption to the provided image.
 **Instructions:**
-1.  **Analyze the Visuals:** Scrutinize the image for expressions, actions, and objects.
+1.  **Analyze the Visuals:** Scrutinize the image for expressions, actions, and objects. The user might provide a "digital twin" with a transparent background; feel free to place it in a simple, funny context or background before adding text.
 2.  **Craft the Caption:** Write a short, punchy, clever caption. ${topicInstruction}
 3.  **Meme Aesthetics:** Superimpose the caption onto the image using the classic "Impact" font (white text, heavy black border). Place it strategically to enhance the humor.
 4.  **Output:** Your only output is the final meme image. Do not add commentary.`;

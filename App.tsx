@@ -4,13 +4,14 @@ import { Header } from './components/Header';
 import { ImageUploader } from './components/ImageUploader';
 import { MemeDisplay } from './components/MemeDisplay';
 import { Footer } from './components/Footer';
-import { generateMeme } from './services/geminiService';
+import { generateMeme, createDigitalTwin } from './services/geminiService';
 import type { UploadedImage, MemeGenerationMode } from './types';
 import { fileToBase64 } from './utils/fileUtils';
 import { MemeTopicInput } from './components/MemeTopicInput';
 import { MemeModeSelector } from './components/MemeModeSelector';
 import { TemplateUploader } from './components/TemplateUploader';
 import { FullScreenViewer } from './components/FullScreenViewer';
+import { DigitalTwinCreator } from './components/DigitalTwinCreator';
 
 const App: React.FC = () => {
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
@@ -23,6 +24,8 @@ const App: React.FC = () => {
   const [memeTopic, setMemeTopic] = useState<string>('');
   const [memeMode, setMemeMode] = useState<MemeGenerationMode>('classic');
   const [fullscreenMeme, setFullscreenMeme] = useState<string | null>(null);
+  const [digitalTwin, setDigitalTwin] = useState<UploadedImage | null>(null);
+  const [isCreatingTwin, setIsCreatingTwin] = useState<boolean>(false);
 
   const handleFilesSelect = useCallback(async (files: FileList) => {
     setIsLoading(true);
@@ -67,8 +70,46 @@ const App: React.FC = () => {
     if (templateInput) templateInput.value = '';
   }, []);
 
-  const handleGenerateMeme = useCallback(async () => {
+  const handleCreateTwin = useCallback(async () => {
     if (uploadedImages.length === 0) {
+        setError('Please upload an image first to create a twin.');
+        return;
+    }
+    
+    setIsCreatingTwin(true);
+    setError(null);
+    setDigitalTwin(null);
+
+    try {
+        // Use the most recently uploaded image as the source for the twin
+        const sourceImage = uploadedImages[uploadedImages.length - 1];
+        const resultUrl = await createDigitalTwin(sourceImage);
+        
+        if (resultUrl) {
+            const parts = resultUrl.split(',');
+            const mimeTypePart = parts[0].match(/:(.*?);/);
+            const mimeType = mimeTypePart ? mimeTypePart[1] : sourceImage.mimeType;
+            const base64Data = parts[1];
+
+            if (!base64Data) throw new Error("Could not parse image data from AI response.");
+
+            setDigitalTwin({ data: base64Data, mimeType });
+        } else {
+            throw new Error('The AI did not return an image for the Digital Twin.');
+        }
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+        setError(`Digital Twin creation failed: ${errorMessage}`);
+        console.error(err);
+    } finally {
+        setIsCreatingTwin(false);
+    }
+}, [uploadedImages]);
+
+  const handleGenerateMeme = useCallback(async () => {
+    const sourceImages = digitalTwin ? [digitalTwin] : uploadedImages;
+
+    if (sourceImages.length === 0) {
       setError('Please upload at least one image first.');
       return;
     }
@@ -84,7 +125,7 @@ const App: React.FC = () => {
     setShowConfetti(false);
 
     try {
-      const results = await generateMeme(uploadedImages, memeTopic, memeMode, templateImage);
+      const results = await generateMeme(sourceImages, memeTopic, memeMode, templateImage);
       if (results && results.length > 0) {
         setGeneratedMemes(results);
         // Only show confetti for meme variations, not for story panels
@@ -102,7 +143,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [uploadedImages, memeTopic, memeMode, templateImage]);
+  }, [uploadedImages, memeTopic, memeMode, templateImage, digitalTwin]);
 
   const handleClear = useCallback(() => {
     setUploadedImages([]);
@@ -114,6 +155,7 @@ const App: React.FC = () => {
     setMemeTopic('');
     setTemplateImage(null);
     setMemeMode('classic');
+    setDigitalTwin(null);
     const fileInput = document.getElementById('file-upload') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
     const templateInput = document.getElementById('template-upload') as HTMLInputElement;
@@ -130,9 +172,16 @@ const App: React.FC = () => {
         return 'Upload Image to Recreate';
       case 'classic':
       default:
-        return 'Upload Image(s)';
+        return 'Step 1: Upload Image(s)';
     }
   };
+
+  const getGenerateButtonText = () => {
+    if (isLoading) return 'Summoning Genius...';
+    if (isCreatingTwin) return 'Working...';
+    if (digitalTwin) return '✨ Generate with Twin';
+    return '✨ Generate';
+  }
 
 
   return (
@@ -163,7 +212,7 @@ const App: React.FC = () => {
             <TemplateUploader
               onTemplateSelect={handleTemplateSelect}
               templateImage={templateImage}
-              isLoading={isLoading}
+              isLoading={isLoading || isCreatingTwin}
               onRemoveTemplate={handleRemoveTemplate}
             />
           )}
@@ -171,28 +220,37 @@ const App: React.FC = () => {
           <ImageUploader
             onFilesSelect={handleFilesSelect}
             uploadedImages={uploadedImages}
-            isLoading={isLoading}
+            isLoading={isLoading || isCreatingTwin}
             title={getImageUploaderTitle()}
             onRemoveImage={handleRemoveImage}
+          />
+
+          <DigitalTwinCreator
+            isToggled={uploadedImages.length > 0 && memeMode !== 'story' && memeMode !== 'custom'}
+            onTwinCreate={handleCreateTwin}
+            onTwinRemove={() => setDigitalTwin(null)}
+            twin={digitalTwin}
+            isCreating={isCreatingTwin}
+            isLoadingApp={isLoading}
           />
           
           <MemeTopicInput
             value={memeTopic}
             onChange={setMemeTopic}
-            isLoading={isLoading}
+            isLoading={isLoading || isCreatingTwin}
           />
 
           <div className="mt-6 flex flex-col sm:flex-row gap-4">
             <button
               onClick={handleGenerateMeme}
-              disabled={isLoading || uploadedImages.length === 0}
+              disabled={isLoading || isCreatingTwin || uploadedImages.length === 0}
               className="w-full sm:w-1/2 flex-grow bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-purple-500/50 shadow-lg"
             >
-              {isLoading ? 'Summoning Genius...' : '✨ Generate'}
+              {getGenerateButtonText()}
             </button>
              <button
               onClick={handleClear}
-              disabled={isLoading && uploadedImages.length === 0}
+              disabled={isLoading || isCreatingTwin}
               className="w-full sm:w-1/2 flex-grow bg-gray-600 hover:bg-gray-700 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-gray-500/50 shadow-lg"
             >
               Clear
