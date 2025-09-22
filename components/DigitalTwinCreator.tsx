@@ -10,6 +10,7 @@ interface DigitalTwinCreatorProps {
     twin: UploadedImage | null;
     isCreating: boolean;
     isLoadingApp: boolean;
+    title: string;
 }
 
 const CloseIcon: React.FC = () => (
@@ -18,14 +19,14 @@ const CloseIcon: React.FC = () => (
     </svg>
 );
 
-export const DigitalTwinCreator: React.FC<DigitalTwinCreatorProps> = ({ isToggled, onTwinCreate, onTwinRemove, twin, isCreating, isLoadingApp }) => {
+export const DigitalTwinCreator: React.FC<DigitalTwinCreatorProps> = ({ isToggled, onTwinCreate, onTwinRemove, twin, isCreating, isLoadingApp, title }) => {
     if (!isToggled) {
         return null;
     }
 
     return (
         <div className="mt-6 p-4 border-2 border-dashed border-cyan-500/50 rounded-lg bg-gray-800/30 transition-all duration-300">
-            <h3 className="text-lg font-medium text-cyan-300 mb-2">Step 2: Create a Digital Twin (Recommended)</h3>
+            <h3 className="text-lg font-medium text-cyan-300 mb-2">{title}</h3>
             <p className="text-sm text-gray-400 mb-4">
                 Turn your subject into a versatile digital model. This removes the background and often leads to better, funnier memes.
             </p>

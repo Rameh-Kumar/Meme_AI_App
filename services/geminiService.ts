@@ -71,11 +71,13 @@ const createPrompt = (mode: MemeGenerationMode, topic?: string, hasTemplate?: bo
       return `You are a world-class digital artist and photo editor, specializing in creating photorealistic composites for memes. Your work is undetectable.
 **Mission:** Perfectly integrate a user's subject into a meme template by replacing the template's main character.
 
+**Important Note:** The user may provide a clean "digital twin" of the subject image with a transparent background. If this is provided, prioritize using this high-quality asset for a seamless integration.
+
 **Core Instructions:**
 
 1.  **Comprehensive Character Replacement:**
     *   **Identify the Main Character:** Analyze the template to identify the primary person or character being featured.
-    *   **Full Replacement:** Your main goal is to replace **every instance** of this main character with the subject from the user's uploaded image. If the template is a multi-panel comic or shows the character in different poses, the user's subject must replace them in **all** of those locations to maintain the meme's narrative consistency.
+    *   **Full Replacement:** Your main goal is to replace **every instance** of this main character with the subject from the user's uploaded image (or their digital twin). If the template is a multi-panel comic or shows the character in different poses, the user's subject must replace them in **all** of those locations to maintain the meme's narrative consistency.
     *   **Preserve the Scene:** The background, context, and other elements of the template must remain unchanged. You are only swapping the main character.
 
 2.  **Aesthetic Matching (TOP PRIORITY):** The visual integration must be FLAWLESS and utterly convincing. This is your most important task.
@@ -117,7 +119,7 @@ const createStoryPrompt = (panelNumber: number, totalPanels: number, topic: stri
 
   return `You are a comic book artist creating a ${totalPanels}-panel comic strip.
 **Mission:** Create panel ${panelNumber} of ${totalPanels}.
-**Character Reference:** The provided image contains the main character(s). Their appearance, clothing, and style MUST remain consistent with this reference image throughout the story. Do not change the character.
+**Character Reference:** The provided image is your key reference for the main character. It may be a clean "digital twin" with a transparent background, which you should place into new scenes. Regardless, their appearance, clothing, and style MUST remain consistent with this reference image throughout the story. Do not change the character.
 **Story Topic:** ${topicInstruction}
 **Panel Task:** ${panelContext}
 **Output:** Your only output is the final, high-quality image for this specific panel. Do not add panel numbers, text unrelated to the story, or explanations.`;

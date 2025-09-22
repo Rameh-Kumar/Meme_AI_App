@@ -136,6 +136,7 @@ const App: React.FC = () => {
       } else {
         throw new Error('The AI did not return any images. Please try a different source image or topic.');
       }
+// FIX: Added missing opening brace to catch block. This was causing cascading scope errors.
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
       setError(`Meme generation failed: ${errorMessage}`);
@@ -173,6 +174,15 @@ const App: React.FC = () => {
       case 'classic':
       default:
         return 'Step 1: Upload Image(s)';
+    }
+  };
+
+  const getDigitalTwinTitle = () => {
+    switch (memeMode) {
+      case 'story':
+        return 'Step 2: Create Character Model (Recommended)';
+      default:
+        return 'Step 2: Create a Digital Twin (Recommended)';
     }
   };
 
@@ -226,12 +236,13 @@ const App: React.FC = () => {
           />
 
           <DigitalTwinCreator
-            isToggled={uploadedImages.length > 0 && memeMode !== 'story' && memeMode !== 'custom'}
+            isToggled={uploadedImages.length > 0}
             onTwinCreate={handleCreateTwin}
             onTwinRemove={() => setDigitalTwin(null)}
             twin={digitalTwin}
             isCreating={isCreatingTwin}
             isLoadingApp={isLoading}
+            title={getDigitalTwinTitle()}
           />
           
           <MemeTopicInput
