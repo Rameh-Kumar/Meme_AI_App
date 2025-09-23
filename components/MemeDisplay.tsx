@@ -73,9 +73,13 @@ export const MemeDisplay: React.FC<MemeDisplayProps> = ({ memes, selectedMeme, o
     );
   }
 
+  const isVariationMode = memeMode === 'classic' || memeMode === 'popular';
+
   return (
     <div className="mt-8">
-        <h2 className="text-2xl font-bold text-center mb-4 bg-gradient-to-r from-purple-400 to-pink-500 text-transparent bg-clip-text">Choose Your Favorite!</h2>
+        <h2 className="text-2xl font-bold text-center mb-4 bg-gradient-to-r from-purple-400 to-pink-500 text-transparent bg-clip-text">
+            {isVariationMode ? 'Choose Your Favorite!' : 'Your Creation!'}
+        </h2>
         
         {/* Main Preview Area */}
         <div className="relative bg-gray-900/50 p-2 rounded-lg shadow-lg border border-gray-700 min-h-[300px] flex items-center justify-center">
@@ -91,22 +95,26 @@ export const MemeDisplay: React.FC<MemeDisplayProps> = ({ memes, selectedMeme, o
                     </button>
                 </>
             ) : (
-                <p className="text-gray-500 p-8 text-center">Select a variation below to see it in all its glory.</p>
+                <p className="text-gray-500 p-8 text-center">
+                    {isVariationMode ? 'Select a variation below to see it in all its glory.' : 'Your meme is ready!'}
+                </p>
             )}
         </div>
 
         {/* Thumbnails */}
-        <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-4">
-            {memes.map((memeUrl, index) => (
-                <div
-                    key={index}
-                    onClick={() => onSelectMeme(memeUrl)}
-                    className={`relative aspect-square cursor-pointer rounded-lg overflow-hidden border-4 transition-all duration-200 ${selectedMeme === memeUrl ? 'border-purple-500 scale-105 shadow-lg' : 'border-transparent hover:border-gray-500'}`}
-                >
-                    <img src={memeUrl} alt={`Meme variation ${index + 1}`} className="absolute inset-0 w-full h-full object-cover" />
-                </div>
-            ))}
-        </div>
+        {isVariationMode && (
+          <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-4">
+              {memes.map((memeUrl, index) => (
+                  <div
+                      key={index}
+                      onClick={() => onSelectMeme(memeUrl)}
+                      className={`relative aspect-square cursor-pointer rounded-lg overflow-hidden border-4 transition-all duration-200 ${selectedMeme === memeUrl ? 'border-purple-500 scale-105 shadow-lg' : 'border-transparent hover:border-gray-500'}`}
+                  >
+                      <img src={memeUrl} alt={`Meme variation ${index + 1}`} className="absolute inset-0 w-full h-full object-cover" />
+                  </div>
+              ))}
+          </div>
+        )}
 
         <a
             href={selectedMeme ?? '#'}
@@ -120,7 +128,7 @@ export const MemeDisplay: React.FC<MemeDisplayProps> = ({ memes, selectedMeme, o
             }`}
         >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-            Download Selected Meme
+            Download {isVariationMode ? 'Selected Meme' : 'Meme'}
         </a>
     </div>
   );

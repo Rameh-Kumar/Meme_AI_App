@@ -5,13 +5,15 @@ import { ImageUploader } from './components/ImageUploader';
 import { MemeDisplay } from './components/MemeDisplay';
 import { Footer } from './components/Footer';
 import { generateMeme, createDigitalTwin } from './services/geminiService';
-import type { UploadedImage, MemeGenerationMode } from './types';
-import { fileToBase64 } from './utils/fileUtils';
+import type { UploadedImage, MemeGenerationMode, DigitalTwinStyle } from './types';
+import { fileToBase64, imageUrlToBase64 } from './utils/fileUtils';
 import { MemeTopicInput } from './components/MemeTopicInput';
 import { MemeModeSelector } from './components/MemeModeSelector';
 import { TemplateUploader } from './components/TemplateUploader';
 import { FullScreenViewer } from './components/FullScreenViewer';
 import { DigitalTwinCreator } from './components/DigitalTwinCreator';
+import { MemeTemplateLibrary } from './components/MemeTemplateLibrary';
+import type { MemeTemplate } from './memeTemplates';
 
 const App: React.FC = () => {
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
@@ -26,6 +28,8 @@ const App: React.FC = () => {
   const [fullscreenMeme, setFullscreenMeme] = useState<string | null>(null);
   const [digitalTwin, setDigitalTwin] = useState<UploadedImage | null>(null);
   const [isCreatingTwin, setIsCreatingTwin] = useState<boolean>(false);
+  const [digitalTwinStyle, setDigitalTwinStyle] = useState<DigitalTwinStyle>('sticker');
+  const [selectedTemplateUrl, setSelectedTemplateUrl] = useState<string | null>(null);
 
   const handleFilesSelect = useCallback(async (files: FileList) => {
     setIsLoading(true);
@@ -52,6 +56,7 @@ const App: React.FC = () => {
     try {
       const newImage = await fileToBase64(file);
       setTemplateImage(newImage);
+      setSelectedTemplateUrl(null); // Clear predefined selection
     } catch (err) {
       setError('Failed to process template image. Please try again.');
       console.error(err);
@@ -59,6 +64,32 @@ const App: React.FC = () => {
       setIsLoading(false);
     }
   }, []);
+  
+  const handlePredefinedTemplateSelect = useCallback(async (template: MemeTemplate) => {
+    if (template.imageUrl === selectedTemplateUrl) {
+      // If the same template is clicked again, deselect it.
+      setTemplateImage(null);
+      setSelectedTemplateUrl(null);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    setGeneratedMemes([]);
+    
+    try {
+      const newImage = await imageUrlToBase64(template.imageUrl);
+      setTemplateImage(newImage);
+      setSelectedTemplateUrl(template.imageUrl);
+    } catch (err) {
+      setError('Failed to load template image. Please try another one or upload your own. This might be a CORS issue.');
+      console.error(err);
+      setTemplateImage(null);
+      setSelectedTemplateUrl(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedTemplateUrl]);
 
   const handleRemoveImage = useCallback((indexToRemove: number) => {
     setUploadedImages(prevImages => prevImages.filter((_, index) => index !== indexToRemove));
@@ -66,6 +97,7 @@ const App: React.FC = () => {
 
   const handleRemoveTemplate = useCallback(() => {
     setTemplateImage(null);
+    setSelectedTemplateUrl(null);
     const templateInput = document.getElementById('template-upload') as HTMLInputElement;
     if (templateInput) templateInput.value = '';
   }, []);
@@ -83,7 +115,7 @@ const App: React.FC = () => {
     try {
         // Use the most recently uploaded image as the source for the twin
         const sourceImage = uploadedImages[uploadedImages.length - 1];
-        const resultUrl = await createDigitalTwin(sourceImage);
+        const resultUrl = await createDigitalTwin(sourceImage, digitalTwinStyle);
         
         if (resultUrl) {
             const parts = resultUrl.split(',');
@@ -104,7 +136,7 @@ const App: React.FC = () => {
     } finally {
         setIsCreatingTwin(false);
     }
-}, [uploadedImages]);
+}, [uploadedImages, digitalTwinStyle]);
 
   const handleGenerateMeme = useCallback(async () => {
     const sourceImages = digitalTwin ? [digitalTwin] : uploadedImages;
@@ -128,10 +160,14 @@ const App: React.FC = () => {
       const results = await generateMeme(sourceImages, memeTopic, memeMode, templateImage);
       if (results && results.length > 0) {
         setGeneratedMemes(results);
-        // Only show confetti for meme variations, not for story panels
-        if (memeMode !== 'story') {
+        // For custom mode, there's only one result, so select it immediately.
+        if (memeMode === 'custom') {
+          setSelectedMeme(results[0]);
+        }
+        // Only show confetti for modes that generate multiple variations.
+        if (memeMode !== 'story' && memeMode !== 'custom') {
           setShowConfetti(true);
-          setTimeout(() => setShowConfetti(false), 5000); 
+          setTimeout(() => setShowConfetti(false), 5000);
         }
       } else {
         throw new Error('The AI did not return any images. Please try a different source image or topic.');
@@ -155,8 +191,10 @@ const App: React.FC = () => {
     setShowConfetti(false);
     setMemeTopic('');
     setTemplateImage(null);
+    setSelectedTemplateUrl(null);
     setMemeMode('classic');
     setDigitalTwin(null);
+    setDigitalTwinStyle('sticker');
     const fileInput = document.getElementById('file-upload') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
     const templateInput = document.getElementById('template-upload') as HTMLInputElement;
@@ -168,7 +206,7 @@ const App: React.FC = () => {
       case 'story':
         return 'Upload Character Image';
       case 'custom':
-        return 'Upload Subject Image(s)';
+        return 'Step 1: Upload Subject Image(s)';
       case 'popular':
         return 'Upload Image to Recreate';
       case 'classic':
@@ -178,11 +216,12 @@ const App: React.FC = () => {
   };
 
   const getDigitalTwinTitle = () => {
+    const stepNumber = memeMode === 'custom' ? 3 : 2;
     switch (memeMode) {
       case 'story':
-        return 'Step 2: Create Character Model (Recommended)';
+        return `Step ${stepNumber}: Create Character Model (Recommended)`;
       default:
-        return 'Step 2: Create a Digital Twin (Recommended)';
+        return `Step ${stepNumber}: Create a Digital Twin (Recommended)`;
     }
   };
 
@@ -219,12 +258,24 @@ const App: React.FC = () => {
           <MemeModeSelector selectedMode={memeMode} onModeChange={setMemeMode} />
           
           {memeMode === 'custom' && (
-            <TemplateUploader
-              onTemplateSelect={handleTemplateSelect}
-              templateImage={templateImage}
-              isLoading={isLoading || isCreatingTwin}
-              onRemoveTemplate={handleRemoveTemplate}
-            />
+            <>
+              <MemeTemplateLibrary
+                onSelectTemplate={handlePredefinedTemplateSelect}
+                selectedTemplateUrl={selectedTemplateUrl}
+                isLoading={isLoading}
+              />
+              <div className="relative flex py-5 items-center">
+                <div className="flex-grow border-t border-gray-600"></div>
+                <span className="flex-shrink mx-4 text-gray-400 font-semibold">OR</span>
+                <div className="flex-grow border-t border-gray-600"></div>
+              </div>
+              <TemplateUploader
+                onTemplateSelect={handleTemplateSelect}
+                templateImage={templateImage}
+                isLoading={isLoading || isCreatingTwin}
+                onRemoveTemplate={handleRemoveTemplate}
+              />
+            </>
           )}
 
           <ImageUploader
@@ -243,6 +294,8 @@ const App: React.FC = () => {
             isCreating={isCreatingTwin}
             isLoadingApp={isLoading}
             title={getDigitalTwinTitle()}
+            selectedStyle={digitalTwinStyle}
+            onStyleChange={setDigitalTwinStyle}
           />
           
           <MemeTopicInput

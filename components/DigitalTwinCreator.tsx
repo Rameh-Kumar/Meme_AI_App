@@ -1,7 +1,8 @@
 
 import React from 'react';
-import type { UploadedImage } from '../types';
+import type { UploadedImage, DigitalTwinStyle } from '../types';
 import { Loader } from './Loader';
+import { DigitalTwinStyleSelector } from './DigitalTwinStyleSelector';
 
 interface DigitalTwinCreatorProps {
     isToggled: boolean;
@@ -11,6 +12,8 @@ interface DigitalTwinCreatorProps {
     isCreating: boolean;
     isLoadingApp: boolean;
     title: string;
+    selectedStyle: DigitalTwinStyle;
+    onStyleChange: (style: DigitalTwinStyle) => void;
 }
 
 const CloseIcon: React.FC = () => (
@@ -19,10 +22,22 @@ const CloseIcon: React.FC = () => (
     </svg>
 );
 
-export const DigitalTwinCreator: React.FC<DigitalTwinCreatorProps> = ({ isToggled, onTwinCreate, onTwinRemove, twin, isCreating, isLoadingApp, title }) => {
+export const DigitalTwinCreator: React.FC<DigitalTwinCreatorProps> = ({ 
+    isToggled, 
+    onTwinCreate, 
+    onTwinRemove, 
+    twin, 
+    isCreating, 
+    isLoadingApp, 
+    title,
+    selectedStyle,
+    onStyleChange 
+}) => {
     if (!isToggled) {
         return null;
     }
+    
+    const isUiDisabled = isCreating || !!twin;
 
     return (
         <div className="mt-6 p-4 border-2 border-dashed border-cyan-500/50 rounded-lg bg-gray-800/30 transition-all duration-300">
@@ -31,6 +46,12 @@ export const DigitalTwinCreator: React.FC<DigitalTwinCreatorProps> = ({ isToggle
                 Turn your subject into a versatile digital model. This removes the background and often leads to better, funnier memes.
             </p>
             
+            <DigitalTwinStyleSelector
+              selectedStyle={selectedStyle}
+              onStyleChange={onStyleChange}
+              isDisabled={isUiDisabled}
+            />
+
             <div className="flex items-center justify-center min-h-[80px]">
                 {isCreating ? (
                     <div className="flex flex-col items-center">

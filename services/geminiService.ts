@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
-import type { UploadedImage, MemeGenerationMode } from '../types';
+import type { UploadedImage, MemeGenerationMode, DigitalTwinStyle } from '../types';
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable is not set.");
@@ -8,16 +8,42 @@ if (!process.env.API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-export const createDigitalTwin = async (image: UploadedImage): Promise<string | null> => {
-  const prompt = `You are an expert digital artist specializing in creating character models.
-**Mission:** Analyze the user's uploaded image and create a "digital twin" of the main subject.
+const getDigitalTwinPrompt = (style: DigitalTwinStyle): string => {
+  const baseInstructions = `You are an expert digital artist specializing in creating character models for virtual environments.
+**Mission:** Analyze the user's uploaded image and create a complete, full-body "digital twin" of the main subject. This is for a 'virtual try-on' use case, so the output should be a complete character model.
 
-**Instructions:**
+**Core Rules (Follow These Strictly):**
 1.  **Identify the Main Subject:** Accurately identify the primary person, animal, or object in the image.
-2.  **Isolate and Remove Background:** Carefully cut out the subject from its original background. The background of the output image must be transparent.
-3.  **Enhance and Clean:** Clean up any artifacts, improve lighting slightly, and enhance details to make the subject look like a high-quality digital asset or sticker. The style should be photorealistic but clean, as if it's ready to be composited into a new scene.
-4.  **Maintain Identity:** The subject must remain 100% recognizable. Do not change its core features, clothing, or expression unless it's to improve clarity.
-5.  **Output:** Your only output is the final, high-quality image of the isolated subject. Do not add any text, borders, or other elements.`;
+2.  **Complete the Subject (Crucial):** If the original image is cropped or shows only part of the subject (e.g., a headshot, waist-up), you **must creatively generate the rest of the body and clothing**. The goal is a complete, full-figure character in a neutral, standing pose. The generated parts must logically match the visible parts in style, clothing, and physique.
+3.  **Isolate and Remove Background:** The background of the output image **must be transparent**. This is non-negotiable for the model to be versatile.
+4.  **Maintain Identity:** The subject's face, hair, and visible clothing must remain 100% recognizable. The essence of the original subject must be preserved, even as you complete their form.
+5.  **Output Format:** Your **only** output must be the final, high-quality image. Do not add any text, borders, watermarks, or other elements outside the subject itself.`;
+
+  const styleInstructions = {
+    sticker: `
+**Style: Photorealistic Model**
+- **Goal:** Create a clean, high-quality, full-body photorealistic model.
+- **Execution:** Generate the full figure based on the subject. Clean up any artifacts from the original image, improve lighting slightly to make it pop, and enhance details. The style should be photorealistic but hyper-clean, as if it's a premium digital asset.`,
+    '3d_model': `
+**Style: 3D Animated Model**
+- **Goal:** Recreate the subject as a high-quality, full-body 3D rendered model, similar to a character from a modern animated film (e.g., Pixar, DreamWorks).
+- **Execution:** Generate the full figure. Give the subject volume, cinematic lighting, and detailed textures (e.g., fabric, skin, fur). The final render should look like a professional character model from a major animation studio.`,
+    cartoon: `
+**Style: 2D Cartoon**
+- **Goal:** Transform the subject into a vibrant, full-body 2D cartoon character.
+- **Execution:** Generate the full figure. Use bold outlines, simplified cel-shading, and slightly exaggerated features, in the style of modern American animation (e.g., 'The Simpsons', 'Rick and Morty'). The character should be expressive and full of a personality.`,
+    pixel_art: `
+**Style: 16-Bit Pixel Art**
+- **Goal:** Convert the subject into a detailed, full-body 16-bit pixel art sprite.
+- **Execution:** Generate the full figure. Recreate the subject using a limited but effective color palette, reminiscent of classic SNES or Sega Genesis video games. Ensure clean pixel lines and a clear, readable silhouette. Avoid anti-aliasing; the pixels should be sharp.`,
+  };
+
+  return `${baseInstructions}\n\n${styleInstructions[style]}`;
+};
+
+
+export const createDigitalTwin = async (image: UploadedImage, style: DigitalTwinStyle): Promise<string | null> => {
+  const prompt = getDigitalTwinPrompt(style);
 
   const contents = {
     parts: [
@@ -51,10 +77,19 @@ export const createDigitalTwin = async (image: UploadedImage): Promise<string | 
 };
 
 
-const createPrompt = (mode: MemeGenerationMode, topic?: string, hasTemplate?: boolean): string => {
+const createPrompt = (
+  mode: MemeGenerationMode, 
+  topic?: string, 
+  hasTemplate?: boolean,
+  variationHint?: string
+): string => {
   const topicInstruction = (topic && topic.trim() !== '') 
-    ? `The user wants the meme to be about: "${topic}". Use this as your primary inspiration.`
+    ? `The user wants the meme to be about: "${topic}". Use this as your primary inspiration for the caption or theme.`
     : `The user has not provided a specific topic, so use your expert judgment to make it universally funny.`;
+
+  const variationInstruction = variationHint
+    ? `\n\n**Creative Directive:** ${variationHint}`
+    : '';
 
   switch (mode) {
     case 'popular':
@@ -65,34 +100,29 @@ const createPrompt = (mode: MemeGenerationMode, topic?: string, hasTemplate?: bo
 2.  **Select a Matching Meme Format:** Choose a well-known meme template that fits the user's image concept (e.g., "Distracted Boyfriend," "Woman Yelling at a Cat," "Is This a Pigeon?").
 3.  **Recreate, Don't Just Caption:** Redraw or artistically reinterpret the user's image to perfectly match the style and composition of the chosen meme format. The original subject(s) must be recognizable but transformed into the meme's world.
 4.  **Add Witty Text:** Add a caption that is hilarious in the context of the new format. ${topicInstruction}
-5.  **Output:** Your only output is the final, high-quality meme image. Do not explain your choice or add extra text.`;
+5.  **Output:** Your only output is the final, high-quality meme image. Do not explain your choice or add extra text.${variationInstruction}`;
 
     case 'custom':
-      return `You are a world-class digital artist and photo editor, specializing in creating photorealistic composites for memes. Your work is undetectable.
-**Mission:** Perfectly integrate a user's subject into a meme template by replacing the template's main character.
+      return `You are a master digital artist and meme director.
 
-**Important Note:** The user may provide a clean "digital twin" of the subject image with a transparent background. If this is provided, prioritize using this high-quality asset for a seamless integration.
+**Mission:** Your task is to recreate a famous meme scene from a "Template Image," but recast the main character with the provided "Subject/Character Model".
 
-**Core Instructions:**
+**Inputs (in order):**
+1.  **Image 1 (The Template):** This is your reference for the scene, composition, mood, and original joke.
+2.  **Image 2 (The Subject/Character Model):** This is the new star of the meme. It's likely a clean "digital twin" with a transparent background. Treat this image as a **character reference model or a virtual actor**, NOT a static image to be pasted.
 
-1.  **Comprehensive Character Replacement:**
-    *   **Identify the Main Character:** Analyze the template to identify the primary person or character being featured.
-    *   **Full Replacement:** Your main goal is to replace **every instance** of this main character with the subject from the user's uploaded image (or their digital twin). If the template is a multi-panel comic or shows the character in different poses, the user's subject must replace them in **all** of those locations to maintain the meme's narrative consistency.
-    *   **Preserve the Scene:** The background, context, and other elements of the template must remain unchanged. You are only swapping the main character.
+**Primary Goal:** Generate a **brand-new image from scratch**. This new image must be a high-fidelity recreation of the template's scene, but with the new subject seamlessly integrated and *acting out the role* of the original character.
 
-2.  **Aesthetic Matching (TOP PRIORITY):** The visual integration must be FLAWLESS and utterly convincing. This is your most important task.
-    *   **Lighting and Shadows:** The subject must be lit identically to how the original character was lit in the template, casting perfectly matching, realistic shadows.
-    *   **Color Grading:** The subject's colors must be meticulously adjusted to blend into the color palette and mood of the template image.
-    *   **Perspective and Scale:** The subject must be scaled and positioned with perfect accuracy within the scene's perspective.
-    *   **Image Quality:** Precisely match the grain, focus, compression artifacts, and overall quality of the template image. The final image should look like a single, untouched photograph.
-
-3.  **Text Handling:**
-    *   The template may already contain text. Your primary goal is the visual integration.
-    *   **Do not add or modify text unless it is absolutely essential to complete the joke.** If the visual replacement of the subject *is* the entire joke, leave the original text as-is.
-    *   ${topicInstruction}
-
-4.  **Output:**
-    *   Your only output is the final, masterfully edited meme image. Do not include any commentary, explanations, or extra text outside the image.`;
+**CRITICAL Directives (Follow these precisely):**
+1.  **Recreate, Don't Edit:** Do NOT simply paste the subject onto the template. You must generate a new image that redraws the entire scene.
+2.  **Animate the Character Model (Most Important Rule):** The subject **must** replace the original main character. You **must change the subject's pose, expression, and even clothing** to perfectly match what the original character was doing in the template. 
+    - If the original character was yelling, make the subject's model yell. 
+    - If they were sweating nervously, make the subject's model sweat. 
+    - If they were pointing at something, make the subject's model point.
+    Your job is to bring the character model to life and make it act.
+3.  **Fidelity to the Scene:** The recreated environment, lighting, and camera angle must be instantly recognizable as the meme from the template.
+4.  **Integrate the Topic:** Use the user's text prompt as the caption for the meme. Integrate this text into the final image in a style that fits the meme format (e.g., Impact font, social media post style, etc.). ${topicInstruction}
+5.  **Output:** Your **ONLY** output is the final, high-quality, recreated meme image. No explanations, no commentary.`;
     
     case 'classic':
     default:
@@ -102,7 +132,7 @@ const createPrompt = (mode: MemeGenerationMode, topic?: string, hasTemplate?: bo
 1.  **Analyze the Visuals:** Scrutinize the image for expressions, actions, and objects. The user might provide a "digital twin" with a transparent background; feel free to place it in a simple, funny context or background before adding text.
 2.  **Craft the Caption:** Write a short, punchy, clever caption. ${topicInstruction}
 3.  **Meme Aesthetics:** Superimpose the caption onto the image using the classic "Impact" font (white text, heavy black border). Place it strategically to enhance the humor.
-4.  **Output:** Your only output is the final meme image. Do not add commentary.`;
+4.  **Output:** Your only output is the final meme image. Do not add commentary.${variationInstruction}`;
   }
 };
 
@@ -130,7 +160,8 @@ const generateSingleMemeInstance = async (
   images: UploadedImage[], 
   topic: string, 
   mode: MemeGenerationMode,
-  templateImage: UploadedImage | null
+  templateImage: UploadedImage | null,
+  variationHint?: string
 ): Promise<string | null> => {
 
   const imageParts = images.map(image => ({
@@ -138,7 +169,7 @@ const generateSingleMemeInstance = async (
   }));
 
   const parts = [];
-  const dynamicPrompt = createPrompt(mode, topic, !!templateImage);
+  const dynamicPrompt = createPrompt(mode, topic, !!templateImage, variationHint);
   parts.push({ text: dynamicPrompt });
 
   // For custom mode, the template comes first.
@@ -251,11 +282,20 @@ export const generateMeme = async (
     }
   }
 
-  const NUMBER_OF_VARIATIONS = 3;
+  const numberOfVariations = mode === 'custom' ? 1 : 3;
   const generationPromises: Promise<string | null>[] = [];
 
-  for (let i = 0; i < NUMBER_OF_VARIATIONS; i++) {
-    generationPromises.push(generateSingleMemeInstance(images, topic, mode, templateImage));
+  // Add hints to encourage diverse outputs for modes that generate multiple variations.
+  const variationHints = [
+    "Make this version witty and clever.",
+    "For this version, try a completely different style of humor, perhaps more absurd or unexpected.",
+    "For this version, focus on a relatable, everyday scenario."
+  ];
+
+  for (let i = 0; i < numberOfVariations; i++) {
+    // Pass a specific hint only for modes that are supposed to have variations.
+    const hint = (mode === 'classic' || mode === 'popular') ? variationHints[i] : undefined;
+    generationPromises.push(generateSingleMemeInstance(images, topic, mode, templateImage, hint));
   }
 
   try {
