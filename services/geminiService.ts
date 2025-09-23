@@ -103,26 +103,25 @@ const createPrompt = (
 5.  **Output:** Your only output is the final, high-quality meme image. Do not explain your choice or add extra text.${variationInstruction}`;
 
     case 'custom':
-      return `You are a master digital artist and meme director.
+      return `You are a master digital artist and meme director. The absolute priority is the seamless visual integration of the character into the scene.
 
-**Mission:** Your task is to recreate a famous meme scene from a "Template Image," but recast the main character with the provided "Subject/Character Model".
+**Mission:** Recreate a meme scene from a "Template Image," recasting the main character with the "Subject/Character Model".
 
 **Inputs (in order):**
-1.  **Image 1 (The Template):** This is your reference for the scene, composition, mood, and original joke.
-2.  **Image 2 (The Subject/Character Model):** This is the new star of the meme. It's likely a clean "digital twin" with a transparent background. Treat this image as a **character reference model or a virtual actor**, NOT a static image to be pasted.
+1.  **Image 1 (The Template):** Your reference for the scene, composition, mood, and style.
+2.  **Image 2 (The Subject/Character Model):** The new star of the meme. Treat this as a **virtual actor**, NOT a static image to be pasted.
 
-**Primary Goal:** Generate a **brand-new image from scratch**. This new image must be a high-fidelity recreation of the template's scene, but with the new subject seamlessly integrated and *acting out the role* of the original character.
+**Primary Goal:** Generate a **brand-new image from scratch** that is a high-fidelity recreation of the template's scene, but with the new subject seamlessly integrated and *acting out the role* of the original character.
 
-**CRITICAL Directives (Follow these precisely):**
-1.  **Recreate, Don't Edit:** Do NOT simply paste the subject onto the template. You must generate a new image that redraws the entire scene.
-2.  **Animate the Character Model (Most Important Rule):** The subject **must** replace the original main character. You **must change the subject's pose, expression, and even clothing** to perfectly match what the original character was doing in the template. 
-    - If the original character was yelling, make the subject's model yell. 
-    - If they were sweating nervously, make the subject's model sweat. 
-    - If they were pointing at something, make the subject's model point.
-    Your job is to bring the character model to life and make it act.
-3.  **Fidelity to the Scene:** The recreated environment, lighting, and camera angle must be instantly recognizable as the meme from the template.
-4.  **Integrate the Topic:** Use the user's text prompt as the caption for the meme. Integrate this text into the final image in a style that fits the meme format (e.g., Impact font, social media post style, etc.). ${topicInstruction}
-5.  **Output:** Your **ONLY** output is the final, high-quality, recreated meme image. No explanations, no commentary.`;
+**CRITICAL Directives:**
+1.  **Recreate, Don't Edit:** Do NOT simply paste the subject onto the template. Redraw the entire scene so the final output looks like a single, cohesive photograph or illustration.
+2.  **Animate the Virtual Actor (Most Important Rule):** The subject **must** replace an original character. You **must change the subject's pose, expression, and actions** to perfectly match what the original character was doing. If the original character was yelling, make the subject yell. If they were pointing, make the subject point. This transformation is the core of the task.
+3.  **Fidelity to the Scene:** The recreated environment, lighting, and camera angle must be instantly recognizable from the template.
+4.  **Handle Text Conditionally (Crucial):**
+    - **First, analyze the Template Image.** Does it contain any text or captions?
+    - **If the Template Image has NO TEXT:** Your final output image must also have **NO TEXT**. Do not add any captions, even if the user provides a topic. The humor must come purely from the visual recreation.
+    - **If the Template Image HAS TEXT:** Recreate the text in a similar style and position. Use the user's topic as inspiration for the content of the text. ${topicInstruction} If the topic is empty, create a new, funny caption that fits the meme's original format.
+5.  **Output:** Your **ONLY** output is the final, high-quality, recreated meme image. No explanations or commentary.`;
     
     case 'classic':
     default:
@@ -170,15 +169,18 @@ const generateSingleMemeInstance = async (
 
   const parts = [];
   const dynamicPrompt = createPrompt(mode, topic, !!templateImage, variationHint);
+  
+  // The first part of the prompt is always text.
   parts.push({ text: dynamicPrompt });
 
-  // For custom mode, the template comes first.
+  // For custom mode, the template image (Image 1) comes after the prompt.
   if (mode === 'custom' && templateImage) {
     parts.push({
       inlineData: { data: templateImage.data, mimeType: templateImage.mimeType },
     });
   }
   
+  // The subject/character images (Image 2+) come last.
   parts.push(...imageParts);
 
   const contents = { parts };
