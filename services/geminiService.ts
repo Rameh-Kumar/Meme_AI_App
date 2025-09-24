@@ -9,33 +9,34 @@ if (!process.env.API_KEY) {
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const getDigitalTwinPrompt = (style: DigitalTwinStyle): string => {
-  const baseInstructions = `You are an expert digital artist specializing in creating character models for virtual environments.
-**Mission:** Analyze the user's uploaded image and create a complete, full-body "digital twin" of the main subject. This is for a 'virtual try-on' use case, so the output should be a complete character model.
+  const baseInstructions = `You are an expert digital artist specializing in creating character models from images.
+**Mission:** Analyze the user's uploaded image, identify **all** prominent subjects (e.g., people, animals), and create a single "digital twin" image asset containing all of them.
 
 **Core Rules (Follow These Strictly):**
-1.  **Identify the Main Subject:** Accurately identify the primary person, animal, or object in the image.
-2.  **Complete the Subject (Crucial):** If the original image is cropped or shows only part of the subject (e.g., a headshot, waist-up), you **must creatively generate the rest of the body and clothing**. The goal is a complete, full-figure character in a neutral, standing pose. The generated parts must logically match the visible parts in style, clothing, and physique.
-3.  **Isolate and Remove Background:** The background of the output image **must be transparent**. This is non-negotiable for the model to be versatile.
-4.  **Maintain Identity:** The subject's face, hair, and visible clothing must remain 100% recognizable. The essence of the original subject must be preserved, even as you complete their form.
-5.  **Output Format:** Your **only** output must be the final, high-quality image. Do not add any text, borders, watermarks, or other elements outside the subject itself.`;
+1.  **Identify ALL Subjects:** Do not pick one "main" subject. You must identify and process every clear person, animal, or primary object in the image.
+2.  **Isolate and Preserve ALL Subjects:** Cut out all identified subjects from the background. Do not discard any of them. The final output image must contain all the subjects from the original, arranged naturally next to each other.
+3.  **Complete the Subjects (Crucial):** If any subject is cropped (e.g., a headshot, waist-up), you **must creatively generate the rest of their body and clothing**. The goal is for every subject to be a complete, full-figure character in a neutral, standing pose. The generated parts must logically match the visible parts in style, clothing, and physique.
+4.  **Isolate and Remove Background:** The background of the output image **must be transparent**. This is non-negotiable for the models to be versatile.
+5.  **Maintain Identity:** All subjects' faces, hair, and visible clothing must remain 100% recognizable. The essence of the original subjects must be preserved.
+6.  **Output Format:** Your **only** output must be the final, high-quality, high-resolution image containing all the processed subjects on a transparent background. Do not add any text, borders, watermarks, or other elements.`;
 
   const styleInstructions = {
     sticker: `
 **Style: Photorealistic Model**
-- **Goal:** Create a clean, high-quality, full-body photorealistic model.
-- **Execution:** Generate the full figure based on the subject. Clean up any artifacts from the original image, improve lighting slightly to make it pop, and enhance details. The style should be photorealistic but hyper-clean, as if it's a premium digital asset.`,
+- **Goal:** Create clean, high-quality, full-body photorealistic models of all subjects.
+- **Execution:** Generate the full figure for every subject. Clean up any artifacts from the original image, improve lighting slightly to make them pop, and enhance details. The style should be photorealistic but hyper-clean, as if they are premium digital assets.`,
     '3d_model': `
 **Style: 3D Animated Model**
-- **Goal:** Recreate the subject as a high-quality, full-body 3D rendered model, similar to a character from a modern animated film (e.g., Pixar, DreamWorks).
-- **Execution:** Generate the full figure. Give the subject volume, cinematic lighting, and detailed textures (e.g., fabric, skin, fur). The final render should look like a professional character model from a major animation studio.`,
+- **Goal:** Recreate all subjects as high-quality, full-body 3D rendered models, similar to characters from a modern animated film (e.g., Pixar, DreamWorks).
+- **Execution:** Generate the full figure for every subject. Give them volume, cinematic lighting, and detailed textures (e.g., fabric, skin, fur). The final render should look like a professional character model from a major animation studio.`,
     cartoon: `
 **Style: 2D Cartoon**
-- **Goal:** Transform the subject into a vibrant, full-body 2D cartoon character.
-- **Execution:** Generate the full figure. Use bold outlines, simplified cel-shading, and slightly exaggerated features, in the style of modern American animation (e.g., 'The Simpsons', 'Rick and Morty'). The character should be expressive and full of a personality.`,
+- **Goal:** Transform all subjects into vibrant, full-body 2D cartoon characters.
+- **Execution:** Generate the full figure for every subject. Use bold outlines, simplified cel-shading, and slightly exaggerated features, in the style of modern American animation. The characters should be expressive and full of personality.`,
     pixel_art: `
 **Style: 16-Bit Pixel Art**
-- **Goal:** Convert the subject into a detailed, full-body 16-bit pixel art sprite.
-- **Execution:** Generate the full figure. Recreate the subject using a limited but effective color palette, reminiscent of classic SNES or Sega Genesis video games. Ensure clean pixel lines and a clear, readable silhouette. Avoid anti-aliasing; the pixels should be sharp.`,
+- **Goal:** Convert all subjects into detailed, full-body 16-bit pixel art sprites.
+- **Execution:** Generate the full figure for every subject. Recreate them using a limited but effective color palette, reminiscent of classic SNES or Sega Genesis video games. Ensure clean pixel lines and clear, readable silhouettes. Avoid anti-aliasing; the pixels should be sharp.`,
   };
 
   return `${baseInstructions}\n\n${styleInstructions[style]}`;
@@ -103,24 +104,30 @@ const createPrompt = (
 5.  **Output:** Your only output is the final, high-quality meme image. Do not explain your choice or add extra text.${variationInstruction}`;
 
     case 'custom':
+      const customUserInstruction = (topic && topic.trim() !== '')
+        ? `The user has provided these instructions: "${topic}". Interpret these instructions to guide the visual recreation (like swapping characters or changing actions) and to inspire new text content if the template has text.`
+        : `The user has not provided specific instructions. Your main task is to replace a key character in the template with the provided subject. Match the pose, expression, and lighting as closely as possible.`;
+
       return `You are a master digital artist and meme director. The absolute priority is the seamless visual integration of the character into the scene.
 
-**Mission:** Recreate a meme scene from a "Template Image," recasting the main character with the "Subject/Character Model".
+**Mission:** Recreate a meme scene from a "Template Image," recasting or adding the "Subject/Character Model" based on user instructions.
+
+**User's Goal:** ${customUserInstruction}
 
 **Inputs (in order):**
 1.  **Image 1 (The Template):** Your reference for the scene, composition, mood, and style.
 2.  **Image 2 (The Subject/Character Model):** The new star of the meme. Treat this as a **virtual actor**, NOT a static image to be pasted.
 
-**Primary Goal:** Generate a **brand-new image from scratch** that is a high-fidelity recreation of the template's scene, but with the new subject seamlessly integrated and *acting out the role* of the original character.
+**Primary Goal:** Generate a **brand-new image from scratch** that is a high-fidelity recreation of the template's scene, but with the new subject seamlessly integrated and *acting out the role* as described by the user or implied by the template.
 
 **CRITICAL Directives:**
 1.  **Recreate, Don't Edit:** Do NOT simply paste the subject onto the template. Redraw the entire scene so the final output looks like a single, cohesive photograph or illustration.
-2.  **Animate the Virtual Actor (Most Important Rule):** The subject **must** replace an original character. You **must change the subject's pose, expression, and actions** to perfectly match what the original character was doing. If the original character was yelling, make the subject yell. If they were pointing, make the subject point. This transformation is the core of the task.
+2.  **Animate the Virtual Actor (Most Important Rule):** The subject **must** replace an original character or be placed logically into the scene. You **must change the subject's pose, expression, and actions** to perfectly match what the original character was doing or what the user instructed. This transformation is the core of the task.
 3.  **Fidelity to the Scene:** The recreated environment, lighting, and camera angle must be instantly recognizable from the template.
 4.  **Handle Text Conditionally (Crucial):**
     - **First, analyze the Template Image.** Does it contain any text or captions?
-    - **If the Template Image has NO TEXT:** Your final output image must also have **NO TEXT**. Do not add any captions, even if the user provides a topic. The humor must come purely from the visual recreation.
-    - **If the Template Image HAS TEXT:** Recreate the text in a similar style and position. Use the user's topic as inspiration for the content of the text. ${topicInstruction} If the topic is empty, create a new, funny caption that fits the meme's original format.
+    - **If the Template Image has NO TEXT:** Your final output image must also have **NO TEXT**. Do not add any captions, even if the user provides instructions that look like text. The humor must come purely from the visual recreation.
+    - **If the Template Image HAS TEXT:** Recreate the text in a similar style and position. Use the user's instructions as inspiration for the content of the text. If the user's instructions are purely visual, create a new, funny caption that fits the meme's original format.
 5.  **Output:** Your **ONLY** output is the final, high-quality, recreated meme image. No explanations or commentary.`;
     
     case 'classic':

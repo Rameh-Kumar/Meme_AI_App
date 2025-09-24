@@ -149,6 +149,10 @@ const App: React.FC = () => {
         setError('Please upload a meme template to use custom mode.');
         return;
     }
+    if (memeMode === 'custom' && memeTopic.trim() === '') {
+        setError('A topic/instruction is required for Custom Template mode.');
+        return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -302,6 +306,7 @@ const App: React.FC = () => {
             value={memeTopic}
             onChange={setMemeTopic}
             isLoading={isLoading || isCreatingTwin}
+            memeMode={memeMode}
           />
 
           <div className="mt-6 flex flex-col sm:flex-row gap-4">
