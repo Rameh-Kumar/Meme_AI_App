@@ -25,7 +25,7 @@ const App: React.FC = () => {
   const [showConfetti, setShowConfetti] = useState<boolean>(false);
   const [memeTopic, setMemeTopic] = useState<string>('');
   const [memeMode, setMemeMode] = useState<MemeGenerationMode>('classic');
-  const [fullscreenMeme, setFullscreenMeme] = useState<string | null>(null);
+  const [fullscreenMemeIndex, setFullscreenMemeIndex] = useState<number | null>(null);
   const [digitalTwin, setDigitalTwin] = useState<UploadedImage | null>(null);
   const [isCreatingTwin, setIsCreatingTwin] = useState<boolean>(false);
   const [digitalTwinStyle, setDigitalTwinStyle] = useState<DigitalTwinStyle>('sticker');
@@ -145,12 +145,12 @@ const App: React.FC = () => {
       setError('Please upload at least one image first.');
       return;
     }
-    if (memeMode === 'custom' && !templateImage) {
-        setError('Please upload a meme template to use custom mode.');
+     if (memeTopic.trim() === '' && memeMode === 'custom') {
+        setError(`An instruction is required for Custom Template mode.`);
         return;
     }
-    if (memeMode === 'custom' && memeTopic.trim() === '') {
-        setError('A topic/instruction is required for Custom Template mode.');
+    if (memeMode === 'custom' && !templateImage) {
+        setError('Please upload a meme template to use custom mode.');
         return;
     }
 
@@ -164,11 +164,9 @@ const App: React.FC = () => {
       const results = await generateMeme(sourceImages, memeTopic, memeMode, templateImage);
       if (results && results.length > 0) {
         setGeneratedMemes(results);
-        // For custom mode, there's only one result, so select it immediately.
-        if (memeMode === 'custom') {
+        if (memeMode === 'custom' || memeMode === 'story') {
           setSelectedMeme(results[0]);
         }
-        // Only show confetti for modes that generate multiple variations.
         if (memeMode !== 'story' && memeMode !== 'custom') {
           setShowConfetti(true);
           setTimeout(() => setShowConfetti(false), 5000);
@@ -176,7 +174,6 @@ const App: React.FC = () => {
       } else {
         throw new Error('The AI did not return any images. Please try a different source image or topic.');
       }
-// FIX: Added missing opening brace to catch block. This was causing cascading scope errors.
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
       setError(`Meme generation failed: ${errorMessage}`);
@@ -205,6 +202,18 @@ const App: React.FC = () => {
     if (templateInput) templateInput.value = '';
   }, []);
   
+  const handleNextMeme = useCallback(() => {
+    if (fullscreenMemeIndex !== null && fullscreenMemeIndex < generatedMemes.length - 1) {
+        setFullscreenMemeIndex(fullscreenMemeIndex + 1);
+    }
+  }, [fullscreenMemeIndex, generatedMemes.length]);
+
+  const handlePrevMeme = useCallback(() => {
+    if (fullscreenMemeIndex !== null && fullscreenMemeIndex > 0) {
+        setFullscreenMemeIndex(fullscreenMemeIndex - 1);
+    }
+  }, [fullscreenMemeIndex]);
+
   const getImageUploaderTitle = () => {
     switch (memeMode) {
       case 'story':
@@ -232,6 +241,7 @@ const App: React.FC = () => {
   const getGenerateButtonText = () => {
     if (isLoading) return 'Summoning Genius...';
     if (isCreatingTwin) return 'Working...';
+    if (memeMode === 'story') return 'Start Story';
     if (digitalTwin) return '✨ Generate with Twin';
     return '✨ Generate';
   }
@@ -332,16 +342,22 @@ const App: React.FC = () => {
             onSelectMeme={setSelectedMeme}
             isLoading={isLoading}
             error={error}
-            onOpenFullscreen={setFullscreenMeme}
+            onOpenFullscreen={setFullscreenMemeIndex}
             memeMode={memeMode}
           />
+
         </div>
       </main>
       <Footer />
-      {fullscreenMeme && (
+      {fullscreenMemeIndex !== null && (
         <FullScreenViewer 
-          memeUrl={fullscreenMeme} 
-          onClose={() => setFullscreenMeme(null)} 
+          memeUrl={generatedMemes[fullscreenMemeIndex]} 
+          onClose={() => setFullscreenMemeIndex(null)}
+          onNext={handleNextMeme}
+          onPrev={handlePrevMeme}
+          showNavigation={(memeMode === 'story' || memeMode === 'classic' || memeMode === 'popular') && generatedMemes.length > 1}
+          isFirst={fullscreenMemeIndex === 0}
+          isLast={fullscreenMemeIndex === generatedMemes.length - 1}
         />
       )}
     </div>

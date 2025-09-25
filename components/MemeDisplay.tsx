@@ -9,7 +9,7 @@ interface MemeDisplayProps {
   onSelectMeme: (memeUrl: string) => void;
   isLoading: boolean;
   error: string | null;
-  onOpenFullscreen: (memeUrl: string) => void;
+  onOpenFullscreen: (index: number) => void;
   memeMode: MemeGenerationMode;
 }
 
@@ -21,7 +21,7 @@ const ExpandIcon: React.FC = () => (
 
 
 export const MemeDisplay: React.FC<MemeDisplayProps> = ({ memes, selectedMeme, onSelectMeme, isLoading, error, onOpenFullscreen, memeMode }) => {
-  if (isLoading) {
+  if (isLoading && memes.length === 0) {
     return (
       <div className="mt-8 p-4 w-full aspect-video bg-gray-800 rounded-lg flex flex-col items-center justify-center transition-all duration-300">
         <Loader />
@@ -52,12 +52,12 @@ export const MemeDisplay: React.FC<MemeDisplayProps> = ({ memes, selectedMeme, o
     return (
       <div className="mt-8">
         <h2 className="text-2xl font-bold text-center mb-4 bg-gradient-to-r from-purple-400 to-pink-500 text-transparent bg-clip-text">Your Story Unfolds...</h2>
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {memes.map((memeUrl, index) => (
             <div 
               key={index} 
               className="relative aspect-video cursor-pointer rounded-lg overflow-hidden border-2 border-gray-700 group text-white" 
-              onClick={() => onOpenFullscreen(memeUrl)}
+              onClick={() => onOpenFullscreen(index)}
               aria-label={`View panel ${index + 1} fullscreen`}
             >
               <img src={memeUrl} alt={`Story panel ${index + 1}`} className="w-full h-full object-cover" />
@@ -67,6 +67,12 @@ export const MemeDisplay: React.FC<MemeDisplayProps> = ({ memes, selectedMeme, o
               </div>
             </div>
           ))}
+           {isLoading && memes.length > 0 && (
+             <div className="relative aspect-video rounded-lg overflow-hidden border-2 border-dashed border-gray-700 flex flex-col items-center justify-center">
+                <Loader />
+                <p className="mt-2 text-sm text-gray-400">Drawing next panel...</p>
+             </div>
+           )}
         </div>
         <p className="text-center text-gray-500 text-sm mt-4">Click on a panel to view it in fullscreen.</p>
       </div>
@@ -87,7 +93,9 @@ export const MemeDisplay: React.FC<MemeDisplayProps> = ({ memes, selectedMeme, o
                 <>
                     <img src={selectedMeme} alt="Selected Meme" className="w-full h-auto max-h-[60vh] object-contain rounded-md" />
                     <button 
-                        onClick={() => onOpenFullscreen(selectedMeme)}
+                        onClick={() => {
+                          if (selectedMeme) onOpenFullscreen(memes.indexOf(selectedMeme));
+                        }}
                         className="absolute top-2 right-2 p-2 text-white bg-black/50 rounded-full hover:bg-black/75 transition-colors"
                         aria-label="View fullscreen"
                     >

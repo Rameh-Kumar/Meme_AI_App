@@ -142,22 +142,38 @@ const createPrompt = (
   }
 };
 
-const createStoryPrompt = (panelNumber: number, totalPanels: number, topic: string): string => {
+const createStoryPrompt = (panelNumber: number, totalPanels: number, topic: string, hasPreviousPanel: boolean): string => {
   const topicInstruction = (topic && topic.trim() !== '') 
-    ? `The story should be about: "${topic}".`
-    : `The story should be something universally funny.`;
+    ? `The overall story theme is: "${topic}".`
+    : `The user has not provided a theme, so you must invent a short, universally funny story from scratch.`;
 
-  const panelContext = {
-    1: 'The first panel should introduce the character(s) and the setting from the image, establishing the beginning of the story.',
-    2: 'This panel is the middle of the story. It should show a rising action, a problem, or a conflict.',
-    3: 'This is the final panel. It should provide a resolution or a punchline to conclude the story.',
-  }[panelNumber];
+  let panelContext = '';
+  switch (panelNumber) {
+    case 1:
+      panelContext = 'The first panel should introduce the character(s) and the setting, establishing the beginning of the story.';
+      break;
+    case 2:
+      panelContext = 'This panel is the middle of the story. It should show a rising action, a problem, or a conflict.';
+      break;
+    case 3:
+      panelContext = 'This panel continues the story, building towards the conclusion.';
+      break;
+    case 4:
+      panelContext = 'This is the final panel. It should provide a resolution or a punchline to conclude the story.';
+      break;
+  }
+  
+  const contextInstruction = hasPreviousPanel
+    ? `**Story Context:** The THIRD image provided is the previous panel of the comic. Use it as a direct visual and narrative continuation point for the new panel you are creating. The story must flow logically from that image.`
+    : '';
 
   return `You are a comic book artist creating a ${totalPanels}-panel comic strip.
 **Mission:** Create panel ${panelNumber} of ${totalPanels}.
-**Character Reference:** The provided image is your key reference for the main character. It may be a clean "digital twin" with a transparent background, which you should place into new scenes. Regardless, their appearance, clothing, and style MUST remain consistent with this reference image throughout the story. Do not change the character.
+**Character Reference:** The SECOND image provided is your key reference for the main character. It may be a clean "digital twin" with a transparent background, which you should place into new scenes. Regardless, their appearance, clothing, and style MUST remain consistent with this reference image throughout the story. Do not change the character.
+${contextInstruction}
 **Story Topic:** ${topicInstruction}
 **Panel Task:** ${panelContext}
+**Style:** Create a visually interesting comic panel with speech bubbles if dialogue is needed. Ensure the style is consistent with any previous panels.
 **Output:** Your only output is the final, high-quality image for this specific panel. Do not add panel numbers, text unrelated to the story, or explanations.`;
 };
 
@@ -216,20 +232,23 @@ const generateSingleMemeInstance = async (
   return null;
 };
 
-const generateStoryPanel = async (
-  image: UploadedImage, 
+export const generateStoryPanel = async (
+  characterImage: UploadedImage, 
   topic: string, 
   panelNumber: number,
-  totalPanels: number
+  totalPanels: number,
+  previousPanel: UploadedImage | null
 ): Promise<string | null> => {
-  const prompt = createStoryPrompt(panelNumber, totalPanels, topic);
+  const prompt = createStoryPrompt(panelNumber, totalPanels, topic, !!previousPanel);
 
-  const contents = {
-    parts: [
-      { text: prompt },
-      { inlineData: { data: image.data, mimeType: image.mimeType } },
-    ]
-  };
+  const parts = [];
+  parts.push({ text: prompt });
+  parts.push({ inlineData: { data: characterImage.data, mimeType: characterImage.mimeType } });
+  if (previousPanel) {
+    parts.push({ inlineData: { data: previousPanel.data, mimeType: previousPanel.mimeType } });
+  }
+
+  const contents = { parts };
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image-preview',
@@ -262,33 +281,43 @@ export const generateMeme = async (
   templateImage: UploadedImage | null
 ): Promise<string[]> => {
   if (mode === 'story') {
-    const NUMBER_OF_PANELS = 3;
-    const panelPromises: Promise<string | null>[] = [];
-    const characterReferenceImage = images[0]; // Use the first image as the consistent reference
-
+    const characterReferenceImage = images[0];
     if (!characterReferenceImage) {
       throw new Error("An image is required for story mode.");
     }
 
-    for (let i = 1; i <= NUMBER_OF_PANELS; i++) {
-        panelPromises.push(generateStoryPanel(characterReferenceImage, topic, i, NUMBER_OF_PANELS));
+    const panels: string[] = [];
+    let previousPanel: UploadedImage | null = null;
+    const totalPanels = 4;
+
+    for (let i = 1; i <= totalPanels; i++) {
+        const panelResult = await generateStoryPanel(characterReferenceImage, topic, i, totalPanels, previousPanel);
+        
+        if (panelResult) {
+            panels.push(panelResult);
+
+            // Prepare previousPanel for the next iteration
+            const mimeTypeMatch = panelResult.match(/data:(.*);base64,/);
+            const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/png';
+            const base64Data = panelResult.split(',')[1];
+            if (base64Data) {
+              previousPanel = { data: base64Data, mimeType };
+            } else {
+              // This case is unlikely but good to handle. Stop if data is malformed.
+              throw new Error(`Failed to process the result for panel ${i}.`);
+            }
+        } else {
+            // If any panel fails, we stop and throw an error.
+            throw new Error(`The AI failed to generate panel ${i} of the story.`);
+        }
+    }
+    
+    if (panels.length === totalPanels) {
+        return panels;
     }
 
-    try {
-        const results = await Promise.all(panelPromises);
-        const successfulPanels = results.filter((panel): panel is string => panel !== null);
-
-        if (successfulPanels.length === 0) {
-            throw new Error("The AI failed to generate any story panels. This can happen due to safety policies or if the request is unclear. Try a different image or topic.");
-        }
-        return successfulPanels;
-    } catch (error) {
-        console.error("Error generating story panels:", error);
-        if (error instanceof Error) {
-            throw new Error(`Gemini API Error: ${error.message}`);
-        }
-        throw new Error("An unknown error occurred while communicating with the Gemini API.");
-    }
+    // This should ideally not be reached if the loop logic is correct.
+    throw new Error("The AI failed to generate the complete story.");
   }
 
   const numberOfVariations = mode === 'custom' ? 1 : 3;
