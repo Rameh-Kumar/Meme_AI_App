@@ -30,6 +30,8 @@ const App: React.FC = () => {
   const [isCreatingTwin, setIsCreatingTwin] = useState<boolean>(false);
   const [digitalTwinStyle, setDigitalTwinStyle] = useState<DigitalTwinStyle>('sticker');
   const [selectedTemplateUrl, setSelectedTemplateUrl] = useState<string | null>(null);
+  const [fullscreenTwin, setFullscreenTwin] = useState<UploadedImage | null>(null);
+
 
   const handleFilesSelect = useCallback(async (files: FileList) => {
     setIsLoading(true);
@@ -310,6 +312,7 @@ const App: React.FC = () => {
             title={getDigitalTwinTitle()}
             selectedStyle={digitalTwinStyle}
             onStyleChange={setDigitalTwinStyle}
+            onPreview={() => setFullscreenTwin(digitalTwin)}
           />
           
           <MemeTopicInput
@@ -358,6 +361,13 @@ const App: React.FC = () => {
           showNavigation={(memeMode === 'story' || memeMode === 'classic' || memeMode === 'popular') && generatedMemes.length > 1}
           isFirst={fullscreenMemeIndex === 0}
           isLast={fullscreenMemeIndex === generatedMemes.length - 1}
+        />
+      )}
+      {fullscreenTwin && (
+        <FullScreenViewer 
+          memeUrl={`data:${fullscreenTwin.mimeType};base64,${fullscreenTwin.data}`} 
+          onClose={() => setFullscreenTwin(null)}
+          showNavigation={false}
         />
       )}
     </div>

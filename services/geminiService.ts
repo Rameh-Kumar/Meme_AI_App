@@ -9,6 +9,10 @@ if (!process.env.API_KEY) {
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const getDigitalTwinPrompt = (style: DigitalTwinStyle): string => {
+  const backgroundInstruction = `4.  **Isolate and Remove Background:** The background of the output image **must be transparent**. This is non-negotiable for the models to be versatile.`;
+  
+  const outputFormatInstruction = '6.  **Output Format:** Your **only** output must be the final, high-quality, high-resolution image containing all the processed subjects on a transparent background. Do not add any text, borders, watermarks, or other elements.';
+  
   const baseInstructions = `You are an expert digital artist specializing in creating character models from images.
 **Mission:** Analyze the user's uploaded image, identify **all** prominent subjects (e.g., people, animals), and create a single "digital twin" image asset containing all of them.
 
@@ -16,9 +20,9 @@ const getDigitalTwinPrompt = (style: DigitalTwinStyle): string => {
 1.  **Identify ALL Subjects:** Do not pick one "main" subject. You must identify and process every clear person, animal, or primary object in the image.
 2.  **Isolate and Preserve ALL Subjects:** Cut out all identified subjects from the background. Do not discard any of them. The final output image must contain all the subjects from the original, arranged naturally next to each other.
 3.  **Complete the Subjects (Crucial):** If any subject is cropped (e.g., a headshot, waist-up), you **must creatively generate the rest of their body and clothing**. The goal is for every subject to be a complete, full-figure character in a neutral, standing pose. The generated parts must logically match the visible parts in style, clothing, and physique.
-4.  **Isolate and Remove Background:** The background of the output image **must be transparent**. This is non-negotiable for the models to be versatile.
-5.  **Maintain Identity:** All subjects' faces, hair, and visible clothing must remain 100% recognizable. The essence of the original subjects must be preserved.
-6.  **Output Format:** Your **only** output must be the final, high-quality, high-resolution image containing all the processed subjects on a transparent background. Do not add any text, borders, watermarks, or other elements.`;
+${backgroundInstruction}
+5.  **Maintain Identity:** All subjects' faces, hair, and visible clothing must be 100% recognizable. The essence of the original subjects must be preserved.
+${outputFormatInstruction}`;
 
   const styleInstructions = {
     sticker: `
